@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAVBOT — Sistema Inteligente de Navegación</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #060a0f;
+    --surface: #0d1520;
+    --surface2: #111d2e;
+    --panel: #0a1219;
+    --accent: #00e5ff;
+    --accent2: #7c3aed;
+    --accent3: #10b981;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --grid: rgba(0,229,255,0.04);
+    --glow: 0 0 20px rgba(0,229,255,0.3);
+    --glow2: 0 0 20px rgba(124,58,237,0.4);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Rajdhani', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: 52px 1fr;
+    grid-template-columns: 290px 1fr 310px;
+  }
+
+  /* HEADER */
+  header {
+    grid-column: 1 / -1;
+    background: var(--panel);
+    border-bottom: 1px solid rgba(0,229,255,0.15);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 16px;
+    position: relative;
+  }
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 4px;
+    text-shadow: var(--glow);
+  }
+  .logo span { color: var(--accent2); }
+  .header-subtitle {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .header-sep { flex: 1; }
+  .status-pill {
+    background: rgba(16,185,129,0.1);
+    border: 1px solid rgba(16,185,129,0.3);
+    color: var(--accent3);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent3);
+    animation: pulse-dot 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--accent3); }
+    50% { opacity: 0.4; box-shadow: none; }
+  }
+
+  /* ─── TOOLTIP SYSTEM ─── */
+  .has-tip {
+    position: relative;
+  }
+  .tip-box {
+    display: none;
+    position: absolute;
+    left: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 999;
+    width: 220px;
+    background: #0e1e2f;
+    border: 1px solid rgba(0,229,255,0.25);
+    border-radius: 8px;
+    padding: 10px 12px;
+    pointer-events: none;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+  }
+  .tip-box::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 5px solid transparent;
+    border-right-color: rgba(0,229,255,0.25);
+    border-left: none;
+  }
+  .has-tip:hover .tip-box { display: block; }
+  .tip-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+  .tip-body {
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.5;
+  }
+  .tip-tag {
+    display: inline-block;
+    margin-top: 6px;
+    background: rgba(0,229,255,0.08);
+    border: 1px solid rgba(0,229,255,0.2);
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+  .tip-tag.warn { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.2); color: var(--warn); }
+  .tip-tag.green { background: rgba(16,185,129,0.08); border-color: rgba(16,185,129,0.2); color: var(--accent3); }
+
+  /* LEFT PANEL */
+  .left-panel {
+    background: var(--panel);
+    border-right: 1px solid rgba(0,229,255,0.08);
+    overflow-y: auto;
+    overflow-x: visible;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .left-panel::-webkit-scrollbar { width: 3px; }
+  .left-panel::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.2); border-radius: 2px; }
+
+  .section-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0,229,255,0.1);
+    margin-bottom: 4px;
+  }
+
+  .tool-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .tool-btn {
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: var(--text);
+    padding: 10px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.15s;
+    text-align: left;
+    width: 100%;
+  }
+  .tool-btn:hover {
+    background: var(--surface2);
+    border-color: rgba(0,229,255,0.3);
+    color: var(--accent);
+    transform: translateX(2px);
+  }
+  .tool-btn.active {
+    background: rgba(0,229,255,0.08);
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: var(--glow);
+  }
+  .tool-btn .icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+
+  .algo-btn {
+    background: var(--surface);
+    border: 1px solid rgba(124,58,237,0.2);
+    color: var(--text);
+    padding: 11px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.2s;
+    width: 100%;
+  }
+  .algo-btn:hover {
+    border-color: var(--accent2);
+    color: #a78bfa;
+    background: rgba(124,58,237,0.08);
+    transform: translateX(2px);
+  }
+  .algo-btn .badge {
+    margin-left: auto;
+    font-size: 8px;
+    padding: 2px 6px;
+    background: rgba(124,58,237,0.2);
+    border-radius: 3px;
+    color: #a78bfa;
+    font-family: 'Space Mono', monospace;
+    flex-shrink: 0;
+  }
+
+  /* Step guide banner */
+  .step-guide {
+    background: rgba(0,229,255,0.05);
+    border: 1px solid rgba(0,229,255,0.15);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+    line-height: 1.6;
+    display: none;
+  }
+  .step-guide.visible { display: block; }
+  .step-guide .sg-title { font-size: 9px; color: var(--muted); letter-spacing: 2px; margin-bottom: 4px; text-transform: uppercase; }
+
+  label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 4px;
+  }
+  select, input[type="text"], input[type="number"] {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 5px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  select:focus, input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0,229,255,0.1);
+  }
+  .weight-neg { color: var(--warn); font-size: 10px; margin-top: 3px; }
+
+  /* CANVAS AREA */
+  .canvas-wrap {
+    position: relative;
+    background: var(--bg);
+    overflow: hidden;
+  }
+  .canvas-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+  #mainCanvas {
+    position: absolute;
+    inset: 0;
+    cursor: crosshair;
+  }
+  .canvas-hint {
+    position: absolute;
+    bottom: 16px; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    pointer-events: none;
+    opacity: 0.5;
+    white-space: nowrap;
+  }
+  .coords-display {
+    position: absolute;
+    top: 12px; left: 12px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: rgba(0,229,255,0.4);
+    pointer-events: none;
+  }
+
+  /* Active tool badge on canvas */
+  .active-tool-badge {
+    position: absolute;
+    top: 12px; right: 12px;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(0,229,255,0.2);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* RIGHT PANEL */
+  .right-panel {
+    background: var(--panel);
+    border-left: 1px solid rgba(0,229,255,0.08);
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .right-panel::-webkit-scrollbar { width: 3px; }
+  .right-panel::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.3); border-radius: 2px; }
+
+  .result-card {
+    background: var(--surface);
+    border: 1px solid rgba(0,229,255,0.1);
+    border-radius: 8px;
+    padding: 14px;
+    display: none;
+    animation: slide-in 0.3s ease;
+  }
+  .result-card.visible { display: block; }
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-algo {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+  }
+  .result-path {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 10px 0;
+  }
+  .path-node {
+    background: rgba(0,229,255,0.1);
+    border: 1px solid rgba(0,229,255,0.25);
+    color: var(--accent);
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .path-arrow { color: var(--muted); align-self: center; font-size: 14px; }
+  .result-cost {
+    font-family: 'Space Mono', monospace;
+    font-size: 22px;
+    color: var(--accent3);
+    text-shadow: 0 0 15px rgba(16,185,129,0.4);
+  }
+  .result-cost-label { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+
+  .error-card {
+    background: rgba(239,68,68,0.08);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: var(--danger);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    display: none;
+  }
+  .error-card.visible { display: block; }
+
+  .steps-accordion {
+    margin-top: 10px;
+    border-top: 1px solid rgba(0,229,255,0.08);
+    padding-top: 10px;
+  }
+  .steps-toggle {
+    font-size: 11px;
+    color: var(--muted);
+    cursor: pointer;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    padding: 0;
+  }
+  .steps-toggle:hover { color: var(--accent); }
+  .steps-list {
+    margin-top: 8px;
+    display: none;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .steps-list.open { display: block; }
+  .step-item {
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .step-item .step-action {
+    color: var(--warn);
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .step-item .step-desc { color: var(--muted); }
+
+  .graph-info {
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { color: var(--muted); }
+  .info-value { color: var(--text); font-family: 'Space Mono', monospace; font-size: 11px; }
+
+  .mst-edges-list { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .mst-edge-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--accent3);
+    background: rgba(16,185,129,0.06);
+    border: 1px solid rgba(16,185,129,0.15);
+    padding: 4px 10px;
+    border-radius: 4px;
+  }
+
+  .spinner {
+    display: none;
+    width: 20px; height: 20px;
+    border: 2px solid rgba(0,229,255,0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  .spinner.active { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .btn-clear {
+    background: rgba(239,68,68,0.08);
+    border: 1px solid rgba(239,68,68,0.2);
+    color: var(--danger);
+    padding: 8px 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    width: 100%;
+  }
+  .btn-clear:hover {
+    background: rgba(239,68,68,0.15);
+    border-color: var(--danger);
+  }
+
+  .btn-demo {
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.2);
+    color: var(--warn);
+    padding: 9px 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    width: 100%;
+  }
+  .btn-demo:hover {
+    background: rgba(245,158,11,0.15);
+    box-shadow: 0 0 15px rgba(245,158,11,0.2);
+  }
+
+  .compare-section { display: flex; flex-direction: column; gap: 8px; }
+  .compare-row {
+    background: var(--surface);
+    border-radius: 6px;
+    padding: 10px 12px;
+    border-left: 3px solid;
+  }
+  .compare-row.dijkstra { border-color: var(--accent); }
+  .compare-row.bellman { border-color: var(--accent2); }
+  .compare-row .algo-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .compare-row.dijkstra .algo-label { color: var(--accent); }
+  .compare-row.bellman .algo-label { color: #a78bfa; }
+
+  .node-tooltip {
+    position: absolute;
+    background: var(--surface2);
+    border: 1px solid rgba(0,229,255,0.2);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    pointer-events: none;
+    display: none;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">NAV<span>BOT</span></div>
+  <div class="header-subtitle">Sistema Inteligente de Navegación · Teoría de Grafos</div>
+  <div class="header-sep"></div>
+  <div class="status-pill"><div class="status-dot"></div>SISTEMA ACTIVO</div>
+</header>
+
+<!-- LEFT PANEL -->
+<div class="left-panel">
+
+  <div>
+    <div class="section-title">⬡ Herramientas</div>
+    <div class="tool-group">
+
+      <div class="has-tip">
+        <button class="tool-btn active" id="tool-add-node" onclick="setTool('add-node')">
+          <span class="icon">⊕</span> Agregar Nodo
+        </button>
+        <div class="tip-box">
+          <div class="tip-title">Agregar Nodo</div>
+          <div class="tip-body">Haz clic en cualquier parte del canvas para colocar un nuevo nodo. Escribe una etiqueta abajo antes de hacer clic.</div>
+          <span class="tip-tag">Click en canvas</span>
+        </div>
+      </div>
+
+      <div class="has-tip">
+        <button class="tool-btn" id="tool-add-edge" onclick="setTool('add-edge')">
+          <span class="icon">⟶</span> Conectar Nodos
+        </button>
+        <div class="tip-box">
+          <div class="tip-title">Conectar Nodos</div>
+          <div class="tip-body">Haz clic en el nodo origen, luego en el nodo destino. Define el peso de la conexión abajo antes de conectar.</div>
+          <span class="tip-tag">2 clics</span>
+          <span class="tip-tag warn">Peso en campo</span>
+        </div>
+      </div>
+
+      <div class="has-tip">
+        <button class="tool-btn" id="tool-move" onclick="setTool('move')">
+          <span class="icon">✥</span> Mover Nodo
+        </button>
+        <div class="tip-box">
+          <div class="tip-title">Mover Nodo</div>
+          <div class="tip-body">Arrastra cualquier nodo para reposicionarlo en el canvas. Las conexiones se actualizan automáticamente.</div>
+          <span class="tip-tag">Drag & drop</span>
+        </div>
+      </div>
+
+      <div class="has-tip">
+        <button class="tool-btn" id="tool-block" onclick="setTool('block')">
+          <span class="icon">⊘</span> Bloquear Ruta
+        </button>
+        <div class="tip-box">
+          <div class="tip-title">Bloquear Ruta</div>
+          <div class="tip-body">Haz clic en una arista o nodo para marcarlos como bloqueados. Las rutas bloqueadas son ignoradas por los algoritmos de navegación.</div>
+          <span class="tip-tag warn">Simula obstáculos</span>
+        </div>
+      </div>
+
+      <div class="has-tip">
+        <button class="tool-btn" id="tool-delete" onclick="setTool('delete')">
+          <span class="icon">✕</span> Eliminar
+        </button>
+        <div class="tip-box">
+          <div class="tip-title">Eliminar</div>
+          <div class="tip-body">Haz clic en un nodo para eliminarlo junto a todas sus conexiones, o en una arista para eliminar solo esa conexión.</div>
+          <span class="tip-tag">Nodo o arista</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Step guide -->
+  <div class="step-guide" id="stepGuide">
+    <div class="sg-title">Instrucción</div>
+    <span id="stepGuideText"></span>
+  </div>
+
+  <div>
+    <div class="section-title">⬡ Nodo Nuevo</div>
+    <label>Etiqueta del nodo</label>
+    <input type="text" id="node-label" placeholder="Ej: Laboratorio, Sala-A…" maxlength="12">
+  </div>
+
+  <div>
+    <div class="section-title">⬡ Peso de Conexión</div>
+    <label>Peso (puede ser negativo)</label>
+    <input type="number" id="edge-weight" value="1" step="0.1">
+    <div class="weight-neg">⚠ Pesos negativos → usar Bellman-Ford</div>
+  </div>
+
+  <div>
+    <div class="section-title">⬡ Selección de Ruta</div>
+    <label>Nodo Origen <span style="color:var(--accent3)">●</span></label>
+    <select id="sel-source"><option value="">— seleccionar —</option></select>
+    <br>
+    <label>Nodo Destino <span style="color:var(--warn)">●</span></label>
+    <select id="sel-target"><option value="">— seleccionar —</option></select>
+  </div>
+
+  <div>
+    <div class="section-title">⬡ Algoritmos</div>
+    <div class="tool-group">
+
+      <div class="has-tip">
+        <button class="algo-btn" onclick="runAlgorithm('dijkstra')">
+          <span>▶</span> Dijkstra <span class="badge">O(E log V)</span>
+        </button>
+        <div class="tip-box">
+          <div class="tip-title">Dijkstra</div>
+          <div class="tip-body">Encuentra el camino más corto entre origen y destino. Más rápido que Bellman-Ford, pero <strong>no funciona con pesos negativos</strong>.</div>
+          <span class="tip-tag green">Ruta más corta</span>
+          <span class="tip-tag">Solo pesos ≥ 0</span>
+        </div>
+      </div>
+
+      <div class="has-tip">
+        <button class="algo-btn" onclick="runAlgorithm('bellman_ford')">
+          <span>▶</span> Bellman-Ford <span class="badge">O(VE)</span>
+        </button>
+        <div class="tip-box">
+          <div class="tip-title">Bellman-Ford</div>
+          <div class="tip-body">Camino más corto tolerante a pesos negativos. Más lento que Dijkstra, pero detecta ciclos negativos en el grafo.</div>
+          <span class="tip-tag green">Pesos negativos</span>
+          <span class="tip-tag warn">Detecta ciclos neg.</span>
+        </div>
+      </div>
+
+      <div class="has-tip">
+        <button class="algo-btn" onclick="runAlgorithm('kruskal')">
+          <span>▶</span> Kruskal MST <span class="badge">O(E log E)</span>
+        </button>
+        <div class="tip-box">
+          <div class="tip-title">Kruskal — Árbol Expansión Mínima</div>
+          <div class="tip-body">Conecta todos los nodos con el menor costo total posible. Útil para redes de infraestructura. Requiere grafo conexo y no dirigido.</div>
+          <span class="tip-tag green">Infraestructura</span>
+          <span class="tip-tag warn">Grafo conexo req.</span>
+        </div>
+      </div>
+
+      <div class="has-tip">
+        <button class="algo-btn" onclick="runAlgorithm('tsp')">
+          <span>▶</span> Agente Viajero <span class="badge">O(n!)</span>
+        </button>
+        <div class="tip-box">
+          <div class="tip-title">TSP — Problema del Agente Viajero</div>
+          <div class="tip-body">Encuentra el recorrido que visita todos los nodos exactamente una vez con el menor costo total. Cálculo exacto solo hasta 10 nodos.</div>
+          <span class="tip-tag warn">Máx. 10 nodos</span>
+          <span class="tip-tag">Visita todos</span>
+        </div>
+      </div>
+
+      <div class="has-tip">
+        <button class="algo-btn" onclick="runAlgorithm('compare')">
+          <span>⇔</span> Comparar D vs BF
+        </button>
+        <div class="tip-box">
+          <div class="tip-title">Comparar Dijkstra vs Bellman-Ford</div>
+          <div class="tip-body">Ejecuta ambos algoritmos sobre el mismo grafo y muestra sus resultados lado a lado. Útil para verificar consistencia o estudiar diferencias.</div>
+          <span class="tip-tag">Origen y destino req.</span>
+        </div>
+      </div>
+
+      <div class="has-tip">
+        <button class="algo-btn" onclick="runAlgorithm('connectivity')">
+          <span>◎</span> Analizar Grafo
+        </button>
+        <div class="tip-box">
+          <div class="tip-title">Análisis de Conectividad</div>
+          <div class="tip-body">Inspecciona la estructura del grafo: si está completamente conectado, cuántos componentes tiene, si existen ciclos, etc.</div>
+          <span class="tip-tag green">Sin origen/destino</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div>
+    <button class="btn-demo" onclick="loadDemo()">⚡ CARGAR DEMO</button>
+  </div>
+  <div>
+    <button class="btn-clear" onclick="clearAll()">✕ LIMPIAR TODO</button>
+  </div>
+
+</div>
+
+<!-- CANVAS -->
+<div class="canvas-wrap" id="canvasWrap">
+  <div class="canvas-grid"></div>
+  <canvas id="mainCanvas"></canvas>
+  <div class="canvas-hint" id="canvasHint">CLICK PARA AGREGAR NODO · ARRASTRA PARA CONECTAR</div>
+  <div class="coords-display" id="coordsDisplay">X: 0 · Y: 0</div>
+  <div class="active-tool-badge" id="activeBadge">⊕ &nbsp;AGREGAR NODO</div>
+  <div class="node-tooltip" id="nodeTooltip"></div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div class="right-panel">
+
+  <div class="section-title">⬡ Resultados</div>
+
+  <div class="error-card" id="errorCard"></div>
+
+  <div class="result-card" id="resultCard">
+    <div class="result-algo" id="resultAlgo"></div>
+    <div class="result-cost-label">COSTO TOTAL</div>
+    <div class="result-cost" id="resultCost">—</div>
+    <div class="result-path" id="resultPath"></div>
+    <div class="steps-accordion" id="stepsAccordion" style="display:none">
+      <button class="steps-toggle" onclick="toggleSteps()">▶ Ver pasos del algoritmo</button>
+      <div class="steps-list" id="stepsList"></div>
+    </div>
+  </div>
+
+  <div class="result-card" id="compareCard">
+    <div class="result-algo">COMPARACIÓN · DIJKSTRA vs BELLMAN-FORD</div>
+    <div class="compare-section" id="compareSection"></div>
+  </div>
+
+  <div class="result-card" id="connectCard">
+    <div class="result-algo">ANÁLISIS DEL GRAFO</div>
+    <div class="graph-info" id="graphInfoContent"></div>
+  </div>
+
+  <div class="result-card" id="kruskalCard">
+    <div class="result-algo">ÁRBOL DE EXPANSIÓN MÍNIMA</div>
+    <div class="result-cost-label">COSTO TOTAL MST</div>
+    <div class="result-cost" id="mstCost">—</div>
+    <div class="mst-edges-list" id="mstEdgesList"></div>
+  </div>
+
+  <div style="display:flex; align-items:center; gap:10px; margin-top:4px;">
+    <div class="spinner" id="spinner"></div>
+    <div id="statusText" style="font-family:'Space Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:1px;"></div>
+  </div>
+
+  <div>
+    <div class="section-title">⬡ Grafo Actual</div>
+    <div class="graph-info">
+      <div class="info-row">
+        <span class="info-label">Nodos</span>
+        <span class="info-value" id="infoNodes">0</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Aristas</span>
+        <span class="info-value" id="infoEdges">0</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Aristas bloqueadas</span>
+        <span class="info-value" id="infoBlocked">0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mini legend -->
+  <div>
+    <div class="section-title">⬡ Leyenda</div>
+    <div style="display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--muted);">
+      <div style="display:flex;align-items:center;gap:8px;"><span style="width:14px;height:14px;border-radius:50%;background:rgba(16,185,129,0.3);border:2px solid #10b981;flex-shrink:0;display:inline-block;"></span>Nodo origen</div>
+      <div style="display:flex;align-items:center;gap:8px;"><span style="width:14px;height:14px;border-radius:50%;background:rgba(245,158,11,0.3);border:2px solid #f59e0b;flex-shrink:0;display:inline-block;"></span>Nodo destino</div>
+      <div style="display:flex;align-items:center;gap:8px;"><span style="width:14px;height:14px;border-radius:50%;background:rgba(0,229,255,0.15);border:2px solid #00e5ff;flex-shrink:0;display:inline-block;"></span>Nodo en ruta</div>
+      <div style="display:flex;align-items:center;gap:8px;"><span style="width:28px;height:2px;background:#ef4444;border-radius:1px;display:inline-block;"></span>Ruta bloqueada</div>
+      <div style="display:flex;align-items:center;gap:8px;"><span style="width:28px;height:2px;background:#10b981;border-radius:1px;display:inline-block;"></span>Arista MST</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CONFIG — URL del backend Flask
+// ═══════════════════════════════════════════════════════
+const BACKEND = 'http://127.0.0.1:5000';
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+const state = {
+  nodes: [],
+  edges: [],
+  tool: 'add-node',
+  edgeStart: null,
+  dragging: null,
+  dragOffset: { x: 0, y: 0 },
+  highlightPath: [],
+  highlightEdges: [],
+  mstEdges: [],
+  robotPos: null,
+  robotPathPoints: [],
+  robotFrame: 0,
+  animating: false,
+  idCounter: 0
+};
+
+// ═══════════════════════════════════════════════════════
+// CANVAS SETUP
+// ═══════════════════════════════════════════════════════
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('canvasWrap');
+
+function resizeCanvas() {
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  render();
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ═══════════════════════════════════════════════════════
+// TOOL MANAGEMENT
+// ═══════════════════════════════════════════════════════
+const toolMeta = {
+  'add-node': { cursor: 'crosshair', badge: '⊕ \u00a0AGREGAR NODO',     hint: 'CLICK EN EL CANVAS PARA COLOCAR UN NODO' },
+  'add-edge': { cursor: 'crosshair', badge: '⟶ \u00a0CONECTAR NODOS',   hint: 'CLICK EN NODO ORIGEN → LUEGO EN NODO DESTINO' },
+  'move':     { cursor: 'grab',      badge: '✥ \u00a0MOVER NODO',        hint: 'ARRASTRA UN NODO PARA REPOSICIONARLO' },
+  'block':    { cursor: 'crosshair', badge: '⊘ \u00a0BLOQUEAR RUTA',     hint: 'CLICK EN ARISTA O NODO PARA BLOQUEAR / DESBLOQUEAR' },
+  'delete':   { cursor: 'not-allowed', badge: '✕ \u00a0ELIMINAR',        hint: 'CLICK EN NODO O ARISTA PARA ELIMINAR' },
+};
+
+function setTool(tool) {
+  state.tool = tool;
+  state.edgeStart = null;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tool-' + tool).classList.add('active');
+  const meta = toolMeta[tool];
+  canvas.style.cursor = meta.cursor;
+  document.getElementById('activeBadge').innerHTML = meta.badge;
+  document.getElementById('canvasHint').textContent = meta.hint;
+  updateStepGuide(tool);
+  render();
+}
+
+function updateStepGuide(tool) {
+  const guide = document.getElementById('stepGuide');
+  const text = document.getElementById('stepGuideText');
+  const guides = {
+    'add-node': null,
+    'add-edge': state.edgeStart
+      ? '2️⃣ Ahora haz clic en el NODO DESTINO para crear la arista.'
+      : '1️⃣ Haz clic en el NODO ORIGEN para comenzar la conexión.',
+    'move': 'Haz clic y arrastra cualquier nodo para moverlo.',
+    'block': 'Haz clic en una arista o nodo para alternar su estado bloqueado.',
+    'delete': 'Haz clic en el elemento que deseas eliminar del grafo.',
+  };
+  const msg = guides[tool];
+  if (msg) {
+    text.textContent = msg;
+    guide.classList.add('visible');
+  } else {
+    guide.classList.remove('visible');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════
+function genId() { return 'N' + (++state.idCounter); }
+
+function hitNode(x, y) {
+  for (let i = state.nodes.length - 1; i >= 0; i--) {
+    const n = state.nodes[i];
+    if (Math.hypot(x - n.x, y - n.y) < 22) return n;
+  }
+  return null;
+}
+
+function hitEdge(x, y) {
+  for (let e of state.edges) {
+    const src = state.nodes.find(n => n.id === e.source);
+    const tgt = state.nodes.find(n => n.id === e.target);
+    if (!src || !tgt) continue;
+    const dx = tgt.x - src.x, dy = tgt.y - src.y;
+    const len = Math.hypot(dx, dy);
+    const t = Math.max(0, Math.min(1, ((x - src.x)*dx + (y - src.y)*dy) / (len*len)));
+    const px = src.x + t*dx - x, py = src.y + t*dy - y;
+    if (Math.hypot(px, py) < 10) return e;
+  }
+  return null;
+}
+
+function updateSelects() {
+  ['sel-source','sel-target'].forEach(sid => {
+    const sel = document.getElementById(sid);
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— seleccionar —</option>';
+    state.nodes.forEach(n => {
+      const opt = document.createElement('option');
+      opt.value = n.id;
+      opt.textContent = `${n.id} · ${n.label}`;
+      if (n.id === cur) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  });
+  document.getElementById('infoNodes').textContent = state.nodes.length;
+  document.getElementById('infoEdges').textContent = state.edges.length;
+  document.getElementById('infoBlocked').textContent = state.edges.filter(e => e.blocked).length;
+}
+
+// ═══════════════════════════════════════════════════════
+// CANVAS EVENTS
+// ═══════════════════════════════════════════════════════
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  document.getElementById('coordsDisplay').textContent = `X: ${Math.round(x)} · Y: ${Math.round(y)}`;
+
+  if (state.tool === 'move' && state.dragging) {
+    state.dragging.x = x - state.dragOffset.x;
+    state.dragging.y = y - state.dragOffset.y;
+    render();
+  }
+
+  const hn = hitNode(x, y);
+  const tt = document.getElementById('nodeTooltip');
+  if (hn) {
+    tt.style.display = 'block';
+    tt.style.left = (x + 15) + 'px';
+    tt.style.top = (y - 10) + 'px';
+    tt.textContent = `${hn.id}: ${hn.label}`;
+  } else {
+    tt.style.display = 'none';
+  }
+});
+
+canvas.addEventListener('mousedown', e => {
+  const r = canvas.getBoundingClientRect();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  const tool = state.tool;
+
+  if (tool === 'add-node') {
+    const rawLabel = document.getElementById('node-label').value.trim();
+    const id = genId();
+    const label = rawLabel || id;
+    state.nodes.push({ id, label, x, y });
+    updateSelects();
+    render();
+  }
+
+  else if (tool === 'add-edge') {
+    const hn = hitNode(x, y);
+    if (hn) {
+      if (!state.edgeStart) {
+        state.edgeStart = hn;
+        updateStepGuide(tool);
+        render();
+      } else {
+        if (state.edgeStart.id !== hn.id) {
+          const w = parseFloat(document.getElementById('edge-weight').value) || 1;
+          state.edges.push({ source: state.edgeStart.id, target: hn.id, weight: w, blocked: false });
+          updateSelects();
+        }
+        state.edgeStart = null;
+        updateStepGuide(tool);
+        render();
+      }
+    }
+  }
+
+  else if (tool === 'move') {
+    const hn = hitNode(x, y);
+    if (hn) {
+      state.dragging = hn;
+      state.dragOffset = { x: x - hn.x, y: y - hn.y };
+      canvas.style.cursor = 'grabbing';
+    }
+  }
+
+  else if (tool === 'block') {
+    const he = hitEdge(x, y);
+    if (he) { he.blocked = !he.blocked; updateSelects(); render(); return; }
+    const hn = hitNode(x, y);
+    if (hn) {
+      state.edges.forEach(e => {
+        if (e.source === hn.id || e.target === hn.id) e.blocked = !e.blocked;
+      });
+      updateSelects(); render();
+    }
+  }
+
+  else if (tool === 'delete') {
+    const hn = hitNode(x, y);
+    if (hn) {
+      state.nodes = state.nodes.filter(n => n.id !== hn.id);
+      state.edges = state.edges.filter(e => e.source !== hn.id && e.target !== hn.id);
+      updateSelects(); render();
+    } else {
+      const he = hitEdge(x, y);
+      if (he) { state.edges = state.edges.filter(e => e !== he); updateSelects(); render(); }
+    }
+  }
+});
+
+canvas.addEventListener('mouseup', () => {
+  if (state.dragging) {
+    state.dragging = null;
+    canvas.style.cursor = 'grab';
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// RENDER ENGINE
+// ═══════════════════════════════════════════════════════
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  state.edges.forEach(e => {
+    const src = state.nodes.find(n => n.id === e.source);
+    const tgt = state.nodes.find(n => n.id === e.target);
+    if (!src || !tgt) return;
+    const isHighlighted = state.highlightPath.length > 1 && isPathEdge(e);
+    const isMST = state.mstEdges.some(me =>
+      (me.source === e.source && me.target === e.target) ||
+      (me.source === e.target && me.target === e.source));
+    drawArrow(ctx, src, tgt, e, isHighlighted, isMST);
+  });
+
+  if (state.edgeStart) {
+    ctx.beginPath();
+    ctx.arc(state.edgeStart.x, state.edgeStart.y, 28, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(124,58,237,0.7)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  state.nodes.forEach(n => {
+    const isHighlighted = state.highlightPath.includes(n.id);
+    const isStart = state.highlightPath[0] === n.id;
+    const isEnd = state.highlightPath[state.highlightPath.length - 1] === n.id;
+    const isEdgeStart = state.edgeStart && state.edgeStart.id === n.id;
+    drawNode(ctx, n, isHighlighted, isStart, isEnd, isEdgeStart);
+  });
+
+  if (state.animating && state.robotPos) drawRobot(ctx, state.robotPos.x, state.robotPos.y);
+}
+
+function isPathEdge(e) {
+  for (let i = 0; i < state.highlightPath.length - 1; i++) {
+    if (state.highlightPath[i] === e.source && state.highlightPath[i+1] === e.target) return true;
+  }
+  return false;
+}
+
+function drawArrow(ctx, src, tgt, edge, highlighted, isMST) {
+  const dx = tgt.x - src.x, dy = tgt.y - src.y;
+  const len = Math.hypot(dx, dy);
+  const ux = dx / len, uy = dy / len;
+  const r = 22;
+  const sx = src.x + ux * r, sy = src.y + uy * r;
+  const ex = tgt.x - ux * (r + 6), ey = tgt.y - uy * (r + 6);
+
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(ex, ey);
+
+  if (edge.blocked) {
+    ctx.strokeStyle = 'rgba(239,68,68,0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 5]);
+  } else if (highlighted) {
+    ctx.strokeStyle = '#00e5ff';
+    ctx.lineWidth = 3;
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = '#00e5ff';
+    ctx.setLineDash([]);
+  } else if (isMST) {
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 2.5;
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = '#10b981';
+    ctx.setLineDash([]);
+  } else {
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([]);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.shadowBlur = 0;
+
+  if (!edge.blocked) {
+    const angle = Math.atan2(ey - sy, ex - sx);
+    const aSize = 8;
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - aSize * Math.cos(angle - 0.4), ey - aSize * Math.sin(angle - 0.4));
+    ctx.lineTo(ex - aSize * Math.cos(angle + 0.4), ey - aSize * Math.sin(angle + 0.4));
+    ctx.closePath();
+    ctx.fillStyle = highlighted ? '#00e5ff' : isMST ? '#10b981' : 'rgba(255,255,255,0.18)';
+    ctx.fill();
+  } else {
+    const mx = (sx + ex) / 2, my = (sy + ey) / 2;
+    ctx.strokeStyle = 'rgba(239,68,68,0.7)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(mx - 5, my - 5); ctx.lineTo(mx + 5, my + 5);
+    ctx.moveTo(mx + 5, my - 5); ctx.lineTo(mx - 5, my + 5);
+    ctx.stroke();
+  }
+
+  const mx = (sx + ex) / 2, my = (sy + ey) / 2;
+  const perp = { x: -uy * 13, y: ux * 13 };
+  ctx.font = '600 11px Space Mono, monospace';
+  ctx.fillStyle = edge.blocked ? 'rgba(239,68,68,0.5)' : highlighted ? '#00e5ff' : isMST ? '#10b981' : 'rgba(180,200,220,0.6)';
+  ctx.textAlign = 'center';
+  ctx.fillText(edge.weight, mx + perp.x, my + perp.y);
+}
+
+function drawNode(ctx, n, highlighted, isStart, isEnd, isEdgeStart) {
+  const r = 20;
+  if (highlighted || isEdgeStart) {
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, r + 8, 0, Math.PI * 2);
+    const grad = ctx.createRadialGradient(n.x, n.y, r, n.x, n.y, r + 8);
+    const glowColor = isStart ? '16,185,129' : isEnd ? '245,158,11' : isEdgeStart ? '124,58,237' : '0,229,255';
+    grad.addColorStop(0, `rgba(${glowColor},0.35)`);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
+  ctx.beginPath();
+  ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+  if (isStart) {
+    ctx.fillStyle = 'rgba(16,185,129,0.2)'; ctx.strokeStyle = '#10b981';
+  } else if (isEnd) {
+    ctx.fillStyle = 'rgba(245,158,11,0.2)'; ctx.strokeStyle = '#f59e0b';
+  } else if (highlighted) {
+    ctx.fillStyle = 'rgba(0,229,255,0.12)'; ctx.strokeStyle = '#00e5ff';
+  } else if (isEdgeStart) {
+    ctx.fillStyle = 'rgba(124,58,237,0.25)'; ctx.strokeStyle = '#7c3aed';
+  } else {
+    ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  }
+  ctx.lineWidth = (highlighted || isEdgeStart) ? 2 : 1.5;
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.font = 'bold 11px Space Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = isStart ? '#10b981' : isEnd ? '#f59e0b' : highlighted ? '#00e5ff' : isEdgeStart ? '#a78bfa' : 'rgba(255,255,255,0.7)';
+  ctx.fillText(n.id, n.x, n.y + 4);
+
+  const short = n.label.length > 8 ? n.label.substring(0,8) + '…' : n.label;
+  ctx.font = '11px Rajdhani, sans-serif';
+  ctx.fillStyle = 'rgba(100,116,139,0.8)';
+  ctx.fillText(short, n.x, n.y + r + 14);
+}
+
+function drawRobot(ctx, x, y) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.shadowBlur = 20;
+  ctx.shadowColor = '#00e5ff';
+  ctx.fillStyle = '#00e5ff';
+  ctx.fillRect(-8, -10, 16, 14);
+  ctx.fillRect(-5, -17, 10, 8);
+  ctx.fillStyle = '#060a0f';
+  ctx.fillRect(-4, -15, 3, 3);
+  ctx.fillRect(1, -15, 3, 3);
+  ctx.beginPath(); ctx.arc(-10, 4, 4, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,229,255,0.5)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(10, 4, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════
+// ROBOT ANIMATION
+// ═══════════════════════════════════════════════════════
+function animateRobot(path) {
+  const points = [];
+  for (let i = 0; i < path.length - 1; i++) {
+    const src = state.nodes.find(n => n.id === path[i]);
+    const tgt = state.nodes.find(n => n.id === path[i+1]);
+    if (!src || !tgt) continue;
+    const steps = 40;
+    for (let s = 0; s <= steps; s++) {
+      points.push({
+        x: src.x + (tgt.x - src.x) * (s / steps),
+        y: src.y + (tgt.y - src.y) * (s / steps)
+      });
+    }
+  }
+  if (!points.length) return;
+  state.animating = true;
+  state.robotFrame = 0;
+  state.robotPathPoints = points;
+  function frame() {
+    if (state.robotFrame >= points.length) { state.animating = false; render(); return; }
+    state.robotPos = points[state.robotFrame++];
+    render();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+// ═══════════════════════════════════════════════════════
+// API CALLS — apuntando al backend Flask en puerto 5000
+// ═══════════════════════════════════════════════════════
+function hideAllResults() {
+  ['resultCard','compareCard','connectCard','kruskalCard','errorCard'].forEach(id => {
+    document.getElementById(id).classList.remove('visible');
+  });
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorCard');
+  el.textContent = '⚠ ' + msg;
+  el.classList.add('visible');
+}
+
+function setStatus(msg) {
+  document.getElementById('statusText').textContent = msg;
+}
+
+async function runAlgorithm(algo) {
+  if (state.nodes.length < 2) { showError('Necesitas al menos 2 nodos en el mapa.'); return; }
+  hideAllResults();
+  state.highlightPath = [];
+  state.highlightEdges = [];
+  state.mstEdges = [];
+  state.animating = false;
+
+  const spinner = document.getElementById('spinner');
+  spinner.classList.add('active');
+  setStatus('PROCESANDO...');
+
+  const payload = {
+    nodes: state.nodes.map(n => ({ id: n.id, label: n.label })),
+    edges: state.edges.map(e => ({ source: e.source, target: e.target, weight: e.weight, blocked: e.blocked })),
+    source: document.getElementById('sel-source').value,
+    target: document.getElementById('sel-target').value
+  };
+
+  const endpoints = {
+    dijkstra:     `${BACKEND}/api/dijkstra`,
+    bellman_ford: `${BACKEND}/api/bellman_ford`,
+    kruskal:      `${BACKEND}/api/kruskal`,
+    tsp:          `${BACKEND}/api/tsp`,
+    compare:      `${BACKEND}/api/compare`,
+    connectivity: `${BACKEND}/api/connectivity`
+  };
+
+  try {
+    const res = await fetch(endpoints[algo], {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    spinner.classList.remove('active');
+
+    if (!res.ok) {
+      showError(data.error || 'Error desconocido.');
+      setStatus('ERROR');
+      render();
+      return;
+    }
+
+    setStatus('COMPLETADO ✓');
+
+    if (algo === 'compare') showCompare(data);
+    else if (algo === 'connectivity') showConnectivity(data);
+    else if (algo === 'kruskal') showKruskal(data);
+    else showResult(data, algo);
+
+    render();
+  } catch(err) {
+    spinner.classList.remove('active');
+    showError(`No se pudo conectar con el servidor Flask en ${BACKEND}. Verifica que esté corriendo.`);
+    setStatus('ERROR DE CONEXIÓN');
+  }
+}
+
+function showResult(data, algo) {
+  state.highlightPath = data.path || [];
+  const card = document.getElementById('resultCard');
+  document.getElementById('resultAlgo').textContent = (data.algorithm || algo).toUpperCase();
+  document.getElementById('resultCost').textContent = data.cost !== undefined ? data.cost : '—';
+
+  const pathEl = document.getElementById('resultPath');
+  pathEl.innerHTML = '';
+  if (data.path) {
+    data.path.forEach((nid, i) => {
+      const span = document.createElement('span');
+      span.className = 'path-node';
+      span.textContent = nid;
+      pathEl.appendChild(span);
+      if (i < data.path.length - 1) {
+        const arr = document.createElement('span');
+        arr.className = 'path-arrow';
+        arr.textContent = '→';
+        pathEl.appendChild(arr);
+      }
+    });
+  }
+
+  const accordion = document.getElementById('stepsAccordion');
+  const stepsList = document.getElementById('stepsList');
+  if (data.steps && data.steps.length) {
+    accordion.style.display = 'block';
+    stepsList.innerHTML = data.steps.map(s => `
+      <div class="step-item">
+        <div class="step-action">${s.action}</div>
+        <div class="step-desc">${s.description}</div>
+      </div>
+    `).join('');
+  } else {
+    accordion.style.display = 'none';
+  }
+
+  if (data.has_negative_cycle) showError('¡Ciclo negativo detectado! El resultado puede no ser válido.');
+
+  card.classList.add('visible');
+  if (data.path) animateRobot(data.path);
+}
+
+function showCompare(data) {
+  const card = document.getElementById('compareCard');
+  const section = document.getElementById('compareSection');
+  let html = '';
+
+  if (data.dijkstra) {
+    if (data.dijkstra.error) {
+      html += `<div class="compare-row dijkstra"><div class="algo-label">DIJKSTRA</div><span style="color:var(--danger);font-size:12px">${data.dijkstra.error}</span></div>`;
+    } else {
+      html += `<div class="compare-row dijkstra"><div class="algo-label">DIJKSTRA</div>
+        <div style="font-family:'Space Mono',monospace;font-size:18px;color:var(--accent)">${data.dijkstra.cost}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">${(data.dijkstra.path||[]).join(' → ')}</div></div>`;
+    }
+  }
+  if (data.bellman_ford) {
+    if (data.bellman_ford.error) {
+      html += `<div class="compare-row bellman"><div class="algo-label">BELLMAN-FORD</div><span style="color:var(--danger);font-size:12px">${data.bellman_ford.error}</span></div>`;
+    } else {
+      html += `<div class="compare-row bellman"><div class="algo-label">BELLMAN-FORD</div>
+        <div style="font-family:'Space Mono',monospace;font-size:18px;color:#a78bfa">${data.bellman_ford.cost}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">${(data.bellman_ford.path||[]).join(' → ')}</div></div>`;
+    }
+  }
+
+  if (data.dijkstra?.path && data.bellman_ford?.path) {
+    const same = JSON.stringify(data.dijkstra.path) === JSON.stringify(data.bellman_ford.path);
+    html += `<div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);text-align:center;padding-top:6px">
+      ${same ? '✓ Ambos encontraron el mismo camino' : '≠ Los algoritmos encontraron caminos distintos'}</div>`;
+    if (data.dijkstra.path) { state.highlightPath = data.dijkstra.path; animateRobot(data.dijkstra.path); }
+  }
+
+  section.innerHTML = html;
+  card.classList.add('visible');
+}
+
+function showConnectivity(data) {
+  const card = document.getElementById('connectCard');
+  const content = document.getElementById('graphInfoContent');
+  content.innerHTML = `
+    <div class="info-row"><span class="info-label">Conectado</span>
+      <span class="info-value" style="color:${data.is_connected ? 'var(--accent3)' : 'var(--danger)'}">${data.is_connected ? 'SÍ' : 'NO'}</span></div>
+    <div class="info-row"><span class="info-label">Nodos</span><span class="info-value">${data.node_count}</span></div>
+    <div class="info-row"><span class="info-label">Aristas</span><span class="info-value">${data.edge_count}</span></div>
+    <div class="info-row"><span class="info-label">Componentes</span><span class="info-value">${data.num_components}</span></div>
+    <div class="info-row"><span class="info-label">Tiene ciclos</span><span class="info-value">${data.has_cycles ? 'SÍ' : 'NO'}</span></div>
+    ${data.num_components > 1 ? `<div style="color:var(--warn);font-size:11px;margin-top:8px;font-family:'Space Mono',monospace">⚠ Componentes: ${data.components.map(c => c.join(',')).join(' | ')}</div>` : ''}
+  `;
+  card.classList.add('visible');
+}
+
+function showKruskal(data) {
+  const card = document.getElementById('kruskalCard');
+  document.getElementById('mstCost').textContent = data.total_cost;
+  state.mstEdges = data.mst_edges || [];
+  const list = document.getElementById('mstEdgesList');
+  list.innerHTML = (data.mst_edges || []).map(e =>
+    `<div class="mst-edge-item">⟶ ${e.source} → ${e.target} <span style="margin-left:auto;color:var(--muted)">${e.weight}</span></div>`
+  ).join('');
+  card.classList.add('visible');
+}
+
+function toggleSteps() {
+  document.getElementById('stepsList').classList.toggle('open');
+}
+
+// ═══════════════════════════════════════════════════════
+// DEMO MAP
+// ═══════════════════════════════════════════════════════
+function loadDemo() {
+  clearAll();
+  const W = canvas.width, H = canvas.height;
+  const cx = W / 2, cy = H / 2;
+
+  state.nodes = [
+    { id: 'A', label: 'Inicio',      x: cx - 200, y: cy - 80  },
+    { id: 'B', label: 'Laboratorio', x: cx - 60,  y: cy - 150 },
+    { id: 'C', label: 'Almacén',     x: cx + 100, y: cy - 80  },
+    { id: 'D', label: 'Cafetería',   x: cx - 60,  y: cy + 60  },
+    { id: 'E', label: 'Salida',      x: cx + 200, y: cy + 60  },
+    { id: 'F', label: 'Sensor',      x: cx - 180, y: cy + 100 },
+  ];
+  state.edges = [
+    { source: 'A', target: 'B', weight: 4, blocked: false },
+    { source: 'A', target: 'D', weight: 2, blocked: false },
+    { source: 'B', target: 'C', weight: 3, blocked: false },
+    { source: 'D', target: 'C', weight: 5, blocked: false },
+    { source: 'C', target: 'E', weight: 1, blocked: false },
+    { source: 'D', target: 'E', weight: 6, blocked: false },
+    { source: 'A', target: 'F', weight: 3, blocked: false },
+    { source: 'F', target: 'D', weight: 2, blocked: false },
+    { source: 'B', target: 'D', weight: 1, blocked: false },
+  ];
+  state.idCounter = 10;
+  updateSelects();
+  document.getElementById('sel-source').value = 'A';
+  document.getElementById('sel-target').value = 'E';
+  render();
+}
+
+function clearAll() {
+  state.nodes = [];
+  state.edges = [];
+  state.highlightPath = [];
+  state.mstEdges = [];
+  state.animating = false;
+  state.edgeStart = null;
+  state.idCounter = 0;
+  hideAllResults();
+  setStatus('');
+  updateSelects();
+  render();
+}
+</script>
+</body>
+</html>
