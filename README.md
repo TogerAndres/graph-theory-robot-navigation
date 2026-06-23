@@ -1,5 +1,3 @@
-Here is your text translated into English, keeping the technical tone and structure:
-
 ---
 
 # NAVBOT — Intelligent Navigation System for Autonomous Robots
